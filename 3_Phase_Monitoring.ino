@@ -17,10 +17,10 @@ const int LCD_ROWS = 4;
 LiquidCrystal_I2C lcd(0x27, LCD_COLS, LCD_ROWS);
 
 //Tombol
-const int pinTombol1 = 9; // pin 9
-const int pinTombol2 = 8; // pin 8
-const int pinTombol3 = 7; // pin 7
-const int pinTombol4 = 6; // pin 6
+const int pinTombol1 = 42;
+const int pinTombol2 = 44;
+const int pinTombol3 = 40;
+const int pinTombol4 = 38;
 
 //Interval Pengiriman
 const long intervalKirimData = 10000;  // Kirim data ke server setiap 10 detik
@@ -73,28 +73,27 @@ void setup() {
   // Inisialisasi Ethernet
   lcd.clear();
   lcd.print("Mencari Alamat IP...");
-  if (Ethernet.begin(mac) == 0) {
-    // Gagal mendapatkan IP dari DHCP (jika tidak pakai IP statis)
+
+  // beri waktu timeout 15 detik
+  if (Ethernet.begin(mac, 15000) == 0) {
     Serial.println("Gagal dapat IP dari DHCP.");
-    lcd.clear();
-    lcd.print("DHCP Gagal. Pakai Statis!");
-    // Coba lagi dengan IP statis
-    delay(1000);
-    Ethernet.begin(mac, ipArduino);
+    delay(2000);
+    modeOffline = handleConnectionError();
   }
 
   delay(1000); // Beri waktu untuk koneksi
 
   // Logika penanganan error koneksi
-  if (Ethernet.linkStatus() == LinkOFF || Ethernet.localIP() == IPAddress(0,0,0,0) ) {
-    modeOffline = handleConnectionError();
-  } else {
+  if (!modeOffline) {
     lcd.clear();
     lcd.print("Terhubung!");
     lcd.setCursor(0, 1);
     lcd.print("IP: ");
     lcd.print(Ethernet.localIP());
     delay(2000);
+  } else {
+    lcd.clear();
+    lcd.print("MODE OFFLINE AKTIF");
   }
 }
 
@@ -168,28 +167,28 @@ void updateLcdDisplay() {
   lcd.clear();
   switch (layarAktif) {
     case TAMPILAN_R:
-      lcd.print("FASA R     V/A/W");
+      lcd.print("FASA R");
       lcd.setCursor(0, 1); lcd.print("V: "); lcd.print(vr, 2);
       lcd.setCursor(0, 2); lcd.print("A: "); lcd.print(ir, 2);
       lcd.setCursor(0, 3); lcd.print("W: "); lcd.print(pr, 2);
-      lcd.setCursor(12, 1); lcd.print("kWh:"); lcd.setCursor(12, 2); lcd.print(er, 2);
-      lcd.setCursor(12, 3); lcd.print("PF :"); lcd.setCursor(12, 4); lcd.print(pfr, 2);
+      lcd.setCursor(12, 1); lcd.print("kWh:"); lcd.print(er, 2);
+      lcd.setCursor(12, 3); lcd.print("PF :"); lcd.print(pfr, 2);  
       break;
     case TAMPILAN_S:
-      lcd.print("FASA S     V/A/W");
+      lcd.print("FASA S");
       lcd.setCursor(0, 1); lcd.print("V: "); lcd.print(vs, 2);
       lcd.setCursor(0, 2); lcd.print("A: "); lcd.print(is, 2);
       lcd.setCursor(0, 3); lcd.print("W: "); lcd.print(ps, 2);
-      lcd.setCursor(12, 1); lcd.print("kWh:"); lcd.setCursor(12, 2); lcd.print(es, 2);
-      lcd.setCursor(12, 3); lcd.print("PF :"); lcd.setCursor(12, 4); lcd.print(pfs, 2);
+      lcd.setCursor(12, 1); lcd.print("kWh:"); lcd.print(es, 2);
+      lcd.setCursor(12, 3); lcd.print("PF :"); lcd.print(pfs, 2);
       break;
     case TAMPILAN_T:
-      lcd.print("FASA T     V/A/W");
+      lcd.print("FASA T");
       lcd.setCursor(0, 1); lcd.print("V: "); lcd.print(vt, 2);
       lcd.setCursor(0, 2); lcd.print("A: "); lcd.print(it, 2);
       lcd.setCursor(0, 3); lcd.print("W: "); lcd.print(pt, 2);
-      lcd.setCursor(12, 1); lcd.print("kWh:"); lcd.setCursor(12, 2); lcd.print(et, 2);
-      lcd.setCursor(12, 3); lcd.print("PF :"); lcd.setCursor(12, 4); lcd.print(pft, 2);
+      lcd.setCursor(12, 1); lcd.print("kWh:"); lcd.print(et, 2);
+      lcd.setCursor(12, 3); lcd.print("PF :"); lcd.print(pft, 2);
       break;
     case TAMPILAN_OVERVIEW:
       lcd.print("OVERVIEW DAYA (WATT)");
@@ -205,8 +204,8 @@ void updateLcdDisplay() {
       break;
     case MENU_RESET_CONFIRM:
       lcd.print("Reset Energi (kWh)?");
-      lcd.setCursor(0, 2); lcd.print("1: Tidak");
-      lcd.setCursor(10, 2); lcd.print("2: Ya");
+      lcd.setCursor(0, 2); lcd.print("1. Tidak");
+      lcd.setCursor(10, 2); lcd.print("2. Ya");
       break;
   }
 }
@@ -258,10 +257,15 @@ bool handleConnectionError() {
   
   while (true) {
     char key = 0;
+    if (digitalRead(pinTombol1) == LOW) key = '1';
+    else if (digitalRead(pinTombol2) == LOW) key = '2';
+
     if (key == '1') { // Pilih Mode Offline
+      delay(200);
       return true;
     }
     if (key == '2') { // Pilih Coba Lagi
+      delay(200);
       lcd.clear();
       lcd.print("Mencoba lagi...");
       Ethernet.begin(mac, ipArduino);
